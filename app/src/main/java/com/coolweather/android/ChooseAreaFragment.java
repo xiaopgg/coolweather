@@ -1,9 +1,11 @@
 package com.coolweather.android;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -44,6 +46,7 @@ public class ChooseAreaFragment extends Fragment {
     private ListView listView;
     private ArrayAdapter<String> adapter;
     private List<String> dataList = new ArrayList<>();
+    private static final String TAG = "ChooseAreaFragment";
     /***
      * 省列表
      */
@@ -93,6 +96,20 @@ public class ChooseAreaFragment extends Fragment {
                 }else if (cunnrentLevel==LEVEL_CITY){
                     selectedCity = cityList.get(position);
                     queryCounties();
+                }else if (cunnrentLevel==LEVEL_COUNTY){
+                    String weatherId = countyList.get(position).getWeatherId();
+                    if (getActivity() instanceof MainActivity){
+                        Intent intent = new Intent(getActivity(),WeatherActivity.class);
+                        intent.putExtra("weather_id",weatherId);
+                        startActivity(intent);
+                        getActivity().finish();
+                    }else if (getActivity() instanceof WeatherActivity){
+                        WeatherActivity activity = (WeatherActivity) getActivity();
+                        activity.drawerLayout.closeDrawers();
+                        activity.swipeRefresh.setRefreshing(true);
+                        activity.requestWeathear(weatherId);
+                    }
+
                 }
             }
         });
@@ -159,7 +176,8 @@ public class ChooseAreaFragment extends Fragment {
     private void queryCounties() {
         titleText.setText(selectedCity.getCityName());
         backButton.setVisibility(View.VISIBLE);
-        countyList=DataSupport.where("cityid = ? ",String.valueOf(selectedProvince.getId())).find(County.class);
+        countyList=DataSupport.where("cityid = ? ",String.valueOf(selectedCity.getId())).find(County.class);
+        Log.w(TAG, "queryCounties: "+countyList.size() );
         if (countyList.size()>0){
             dataList.clear();
             for (County county : countyList){
@@ -172,6 +190,7 @@ public class ChooseAreaFragment extends Fragment {
             int provinceCode = selectedProvince.getProvinceCode();
             int cityCode = selectedCity.getCityCode();
             String address="http://guolin.tech/api/china/"+provinceCode+"/"+cityCode;
+            Log.w(TAG, "queryCounties: "+address);
             queryFromServer(address,"county");
         }
     }
@@ -198,7 +217,7 @@ public class ChooseAreaFragment extends Fragment {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String responseText = response.body().string();
-                boolean result =false;
+                boolean result = false;
                 if ("province".equals(type)){
                     result = Utility.handleProvinceResponse(responseText);
                 }else if ("city".equals(type)){
